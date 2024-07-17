@@ -36,7 +36,7 @@ export default function Render() {
       rendererRef.current.setSize(window.innerWidth, window.innerHeight);
       ref.current.appendChild(rendererRef.current.domElement);
       rendererRef.current.setAnimationLoop(() => {
-        if(!sceneRef.current) return;
+        if (!sceneRef.current) return;
         rendererRef.current?.render(sceneRef.current, camera);
         cube.rotation.x += 0.01;
         cube.rotation.y += 0.01;
@@ -66,10 +66,15 @@ export default function Render() {
               );
               camera.position.z = 10;
               const light = new THREE.AmbientLight(0xffffff);
-             light.intensity = 1
-              light.position.set(0, 0, 10);
+              light.intensity = .3;
+              light.castShadow = true;
+              const pointLight = new THREE.PointLight(0xffffff, 10, 100);
+              pointLight.position.set(10, 0, 0);
+
               sceneRef.current = gltf.scene as unknown as THREE.Scene;
+              sceneRef.current.background = new THREE.Color(0xffffff);
               sceneRef.current.add(light);
+              sceneRef.current.add(pointLight);
               sceneRef.current.add(camera);
               for (const child of gltf.scene.children) {
                 if (child.name === "Armature") {
@@ -80,9 +85,24 @@ export default function Render() {
                       for (const mesh of group.children) {
                         console.log(mesh);
                         if (mesh instanceof THREE.Mesh) {
-                          mesh.material.transparent = true;
-                          (mesh.material as THREE.MeshStandardMaterial).roughness = 0.0;
-
+                          mesh.castShadow = true;
+                          mesh.receiveShadow = true;
+                          if (mesh.name === "Sphere020_2") {
+                            mesh.material.transparent = true;
+                          } else {
+                            (
+                              mesh.material as THREE.MeshStandardMaterial
+                            ).roughness = 0.0;
+                            (
+                              mesh.material as THREE.MeshStandardMaterial
+                            ).metalness = 0.0;
+                            (
+                              mesh.material as THREE.MeshStandardMaterial
+                            ).roughnessMap = null;
+                            (
+                              mesh.material as THREE.MeshStandardMaterial
+                            ).metalnessMap = null;
+                          }
                         }
                       }
                     }
@@ -107,7 +127,7 @@ export default function Render() {
 
               rendererRef.current?.render(sceneRef.current, camera);
               rendererRef.current?.setAnimationLoop(() => {
-                if(!sceneRef.current) return;
+                if (!sceneRef.current) return;
                 if (mixerRef.current) mixerRef.current.update(clock.getDelta());
                 rendererRef.current?.render(sceneRef.current, camera);
               });
@@ -160,12 +180,38 @@ export default function Render() {
         Angry
       </button>
       <button
+        className="absolute right-32 top-32 text-red-500 px-2"
+        onClick={() => {
+          if (!animationsRef.current) return console.error("No animations");
+          if (!mixerRef.current) return console.error("No mixer");
+          if (!clipRef.current) return console.error("No clip");
+          const angry = THREE.AnimationClip.findByName(
+            animationsRef.current,
+            "MakeL",
+          );
+          if (!angry) return console.error("No L :D");
+          mixerRef.current.stopAllAction();
+          actionRef.current = mixerRef.current.clipAction(angry);
+          actionRef.current.reset();
+          actionRef.current.setLoop(THREE.LoopOnce, 1);
+          actionRef.current.play();
+        }}
+      >
+        Make the L
+      </button>
+      <button
         className="absolute right-10 top-44 bg-cyan-400"
         onClick={() => {
-          if(!sceneRef.current) return;
+          if (!sceneRef.current) return;
           const geometry = new THREE.BoxGeometry();
           const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+          material.roughness = 0.1
+          material.envMap = sceneRef.current.background as THREE.CubeTexture
+          material.emissive = new THREE.Color(0x00ff00)
+          material.emissiveIntensity = 2
           const cube = new THREE.Mesh(geometry, material);
+          cube.castShadow = true;
+          cube.receiveShadow = true
           cube.position.x = Math.random() * 10 - 5;
           cube.position.y = Math.random() * 10 - 5;
           cube.position.z = Math.random() * 10 - 5;
@@ -174,7 +220,7 @@ export default function Render() {
       >
         Add cube
       </button>
-      
+
       <div className="min-h-screen w-[99vw]" ref={ref}></div>
     </div>
   );
